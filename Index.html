@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Moctale Hub</title>
+  
+  <!-- PWA Metadata -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#000000">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="icon" type="image/svg+xml" href="icon.svg">
+  <link rel="apple-touch-icon" href="icon.svg">
+
+  <style>
+    :root {
+      --bg-black: #000000;
+      --surface-dark: #09090b;
+      --card-border: #18181b;
+      --text-main: #f4f4f5;
+      --text-muted: #71717a;
+      
+      /* Moctale Tier Colors */
+      --tier-perfection: #a855f7;
+      --tier-goforit: #22c55e;
+      --tier-timepass: #eab308;
+      --tier-skip: #ef4444;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
+    body { background-color: var(--bg-black); color: var(--text-main); height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+
+    /* Header */
+    header { height: 56px; border-bottom: 1px solid var(--card-border); display: flex; align-items: center; justify-content: space-between; padding: 0 16px; background: rgba(0,0,0,0.8); backdrop-filter: blur(10px); }
+    .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 1.1rem; letter-spacing: -0.5px; }
+    .brand img { width: 26px; height: 26px; }
+    .badge-hub { background: #27272a; color: #a1a1aa; font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; font-weight: 600; text-transform: uppercase; }
+
+    /* Main Container & Swiping Tabs */
+    main { flex: 1; overflow-x: hidden; position: relative; }
+    .tab-viewport { display: flex; width: 400%; height: 100%; transition: transform 0.25s cubic-bezier(0.1, 0.9, 0.2, 1); }
+    .tab-page { width: 25%; height: 100%; overflow-y: auto; padding: 16px; }
+
+    /* Search & Filter Bar */
+    .search-box { background: var(--surface-dark); border: 1px solid var(--card-border); border-radius: 12px; padding: 10px 14px; width: 100%; color: var(--text-main); font-size: 0.9rem; margin-bottom: 12px; outline: none; }
+    .search-box:focus { border-color: #3f3f46; }
+
+    /* List Layout: Single-Line Compact */
+    .list-container { display: flex; flex-direction: column; gap: 8px; }
+    .list-row { background: var(--surface-dark); border: 1px solid var(--card-border); border-radius: 10px; padding: 12px 14px; cursor: pointer; transition: background 0.15s ease; }
+    .list-row-header { display: flex; align-items: center; justify-content: space-between; }
+    .movie-title { font-weight: 600; font-size: 0.95rem; display: flex; align-items: center; gap: 8px; }
+    .movie-year { color: var(--text-muted); font-size: 0.85rem; font-weight: 400; }
+    
+    /* Tier Dots */
+    .tier-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+    .dot-perfection { background-color: var(--tier-perfection); box-shadow: 0 0 8px rgba(168,85,247,0.4); }
+    .dot-goforit { background-color: var(--tier-goforit); box-shadow: 0 0 8px rgba(34,197,94,0.4); }
+    .dot-timepass { background-color: var(--tier-timepass); box-shadow: 0 0 8px rgba(234,179,8,0.4); }
+    .dot-skip { background-color: var(--tier-skip); box-shadow: 0 0 8px rgba(239,68,68,0.4); }
+
+    /* Expandable Body */
+    .expanded-content { display: none; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--card-border); color: var(--text-muted); font-size: 0.85rem; }
+    .list-row.open .expanded-content { display: block; }
+    .actions-row { display: flex; gap: 8px; margin-top: 12px; }
+    .btn-action { background: #18181b; border: 1px solid #27272a; color: var(--text-main); padding: 6px 12px; border-radius: 6px; font-size: 0.75rem; font-weight: 600; cursor: pointer; }
+
+    /* Navigation Bar */
+    nav { height: 60px; border-top: 1px solid var(--card-border); display: flex; background: var(--bg-black); }
+    .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; color: var(--text-muted); font-size: 0.7rem; font-weight: 600; cursor: pointer; border: none; background: none; }
+    .nav-item.active { color: var(--text-main); }
+    .nav-icon { width: 20px; height: 20px; fill: currentColor; }
+
+    /* FAB */
+    .fab { position: fixed; bottom: 74px; right: 16px; background: var(--text-main); color: var(--bg-black); width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: bold; border: none; box-shadow: 0 4px 12px rgba(255,255,255,0.2); cursor: pointer; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="brand">
+      <img src="icon.svg" alt="Logo">
+      MOCTALE <span class="badge-hub">HUB</span>
+    </div>
+    <button class="btn-action" onclick="exportData()">Backup</button>
+  </header>
+
+  <main>
+    <div class="tab-viewport" id="tabViewport">
+      <!-- Vault Tab -->
+      <section class="tab-page">
+        <input type="text" class="search-box" id="vaultSearch" placeholder="Search title, director, vibe..." oninput="renderVault()">
+        <div class="list-container" id="vaultList"></div>
+      </section>
+
+      <!-- Intel Feed Tab -->
+      <section class="tab-page">
+        <input type="text" class="search-box" id="intelQuery" placeholder="Query trade updates or cast news...">
+        <div class="list-container">
+          <div class="list-row">
+            <div class="list-row-header">
+              <span class="movie-title">⚡ Salaar 2 Shooting Timeline</span>
+              <span style="font-size:0.75rem; color:var(--text-muted);">Trade Verified</span>
+            </div>
+            <div style="margin-top:8px; font-size:0.85rem; color:var(--text-muted);">Prashanth Neel set to commence shoot post-Dragon schedule.</div>
+            <div class="actions-row">
+              <button class="btn-action" onclick="quickAdd('Salaar 2', 2026)">+ Watchlist</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Review Workbench -->
+      <section class="tab-page">
+        <input type="text" class="search-box" id="revTitle" placeholder="Film Title">
+        <textarea class="search-box" id="revNotes" rows="5" placeholder="Raw notes, thoughts, vibe..."></textarea>
+        <button class="btn-action" style="width:100%; padding:12px;" onclick="generateReview()">Draft Moctale Review</button>
+        <div id="reviewOutput" style="margin-top:16px; font-family:monospace; font-size:0.85rem; color:#a1a1aa; white-space:pre-wrap;"></div>
+      </section>
+
+      <!-- Radar Tab -->
+      <section class="tab-page">
+        <div style="color:var(--text-muted); font-size:0.9rem;">Pop-Culture & Regional Tracking Preferences active.</div>
+      </section>
+    </div>
+  </main>
+
+  <button class="fab" onclick="promptAdd()">+</button>
+
+  <nav>
+    <button class="nav-item active" onclick="switchTab(0)">
+      <svg class="nav-icon" viewBox="0 0 24 24"><path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z"/></svg>
+      Vault
+    </button>
+    <button class="nav-item" onclick="switchTab(1)">
+      <svg class="nav-icon" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zm0 9l10-5v6l-10 5-10-5V6l10 5z"/></svg>
+      Intel
+    </button>
+    <button class="nav-item" onclick="switchTab(2)">
+      <svg class="nav-icon" viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+      Workbench
+    </button>
+    <button class="nav-item" onclick="switchTab(3)">
+      <svg class="nav-icon" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+      Radar
+    </button>
+  </nav>
+
+  <script>
+    // IndexedDB Setup
+    let db;
+    const request = indexedDB.open("MoctaleDB", 1);
+    request.onupgradeneeded = e => {
+      db = e.target.result;
+      db.createObjectStore("vault", { keyPath: "id", autoIncrement: true });
+    };
+    request.onsuccess = e => {
+      db = e.target.result;
+      seedDefaultData();
+    };
+
+    function seedDefaultData() {
+      const tx = db.transaction("vault", "readwrite");
+      const store = tx.objectStore("vault");
+      store.count().onsuccess = e => {
+        if (e.target.result === 0) {
+          const seeds = [
+            { title: "Come and See", year: 1985, director: "Elem Klimov", tier: "perfection" },
+            { title: "Stalker", year: 1979, director: "Andrei Tarkovsky", tier: "perfection" },
+            { title: "Churuli", year: 2021, director: "Lijo Jose Pellissery", tier: "goforit" }
+          ];
+          seeds.forEach(s => store.add(s));
+        }
+        renderVault();
+      };
+    }
+
+    function renderVault() {
+      const tx = db.transaction("vault", "readonly");
+      const store = tx.objectStore("vault");
+      const query = document.getElementById('vaultSearch').value.toLowerCase();
+      store.getAll().onsuccess = e => {
+        const list = document.getElementById('vaultList');
+        list.innerHTML = "";
+        e.target.result
+          .filter(item => item.title.toLowerCase().includes(query) || (item.director && item.director.toLowerCase().includes(query)))
+          .forEach(item => {
+            const row = document.createElement('div');
+            row.className = 'list-row';
+            row.onclick = () => row.classList.toggle('open');
+            row.innerHTML = `
+              <div class="list-row-header">
+                <span class="movie-title">
+                  <span class="tier-dot dot-${item.tier || 'goforit'}"></span>
+                  ${item.title} <span class="movie-year">(${item.year || 'N/A'})</span>
+                </span>
+              </div>
+              <div class="expanded-content">
+                <div><strong>Director:</strong> ${item.director || 'Unknown'}</div>
+                <div class="actions-row">
+                  <button class="btn-action" onclick="event.stopPropagation(); deleteEntry(${item.id})">Delete</button>
+                </div>
+              </div>
+            `;
+            list.appendChild(row);
+          });
+      };
+    }
+
+    function promptAdd() {
+      const title = prompt("Enter Movie Title:");
+      if (!title) return;
+      const year = prompt("Enter Release Year:") || new Date().getFullYear();
+      
+      const tx = db.transaction("vault", "readwrite");
+      tx.objectStore("vault").add({ title, year: parseInt(year), tier: "goforit" });
+      tx.oncomplete = () => renderVault();
+    }
+
+    function quickAdd(title, year) {
+      const tx = db.transaction("vault", "readwrite");
+      tx.objectStore("vault").add({ title, year, tier: "goforit" });
+      tx.oncomplete = () => { alert(`${title} added to Vault!`); renderVault(); };
+    }
+
+    function deleteEntry(id) {
+      const tx = db.transaction("vault", "readwrite");
+      tx.objectStore("vault").delete(id);
+      tx.oncomplete = () => renderVault();
+    }
+
+    function switchTab(index) {
+      document.getElementById('tabViewport').style.transform = `translateX(-${index * 25}%)`;
+      document.querySelectorAll('.nav-item').forEach((btn, i) => {
+        btn.classList.toggle('active', i === index);
+      });
+    }
+
+    function generateReview() {
+      const title = document.getElementById('revTitle').value;
+      const notes = document.getElementById('revNotes').value;
+      if (!title) return alert("Please enter a film title");
+      document.getElementById('reviewOutput').innerText = `🎬 MOCTALE REVIEW\nFilm: ${title}\nTier: 🟣 Perfection\n\n"${notes}"\n\nLogged via Moctale Hub`;
+    }
+
+    function exportData() {
+      const tx = db.transaction("vault", "readonly");
+      tx.objectStore("vault").getAll().onsuccess = e => {
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(e.target.result));
+        const anchor = document.createElement('a');
+        anchor.setAttribute("href", dataStr);
+        anchor.setAttribute("download", "moctale_backup.json");
+        anchor.click();
+      };
+    }
+
+    // Register Service Worker
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js').catch(err => console.log('SW Registration failed:', err));
+    }
+  </script>
+</body>
+</html>
